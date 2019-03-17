@@ -2,86 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class PceOnePole(nn.Module):
-    def identity(self, x):
-        return x
-
-    def getActivationFn(self, activation):
-        if activation == "identity":
-            return nn.ReLU()
-
-    def set_dropout(self, dropout):
-        self.dropout.p = dropout
-
-    def __init__(self, dim, activation = "identity", dropout = 0.5):
-        super(PceOnePole, self).__init__()
-        self.dim = dim
-        
-        self.linear =  nn.Sequential()
-        self.linear.add_module("linear", nn.Linear(2*dim, dim))
-        self.linear.add_module("activation", self.getActivationFn(activation))
-
-        self.linear_similar = nn.Sequential()
-        self.linear_similar.add_module("linear", nn.Linear(dim ,dim))
-        self.linear_similar.add_module("activation", nn.ReLU())
-
-        self.linear_similar_xy = nn.Sequential()
-        self.linear_similar_xy.add_module("linear", nn.Linear(2*dim ,dim))
-        self.linear_similar_xy.add_module("activation", nn.ReLU())
-
-        self.linear_self = nn.Sequential()
-        self.linear_self.add_module("linear", nn.Linear(dim ,dim))
-        self.linear_self.add_module("activation", nn.ReLU())
-
-        self.linear_antonym = nn.Sequential()
-        self.linear_antonym.add_module("linear", nn.Linear(dim ,dim))
-        self.linear_antonym.add_module("activation", nn.ReLU())
-
-        # self.linear_self = nn.Linear(dim ,dim)
-        # self.linear_similar = nn.Linear(dim ,dim)
-        # self.linear_antonym = nn.Linear(dim, dim)
-
-        # self.activation = self.getActivationFn(activation)
-        # self.softmax = nn.Softmax(dim = 1)
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, input_data):
-        batchSize = input_data.shape[0]
-        input = self.dropout(input_data)
-        input = input.chunk(5, 1)
-
-        x = input[0]
-        y = input[1]
-        xy = torch.cat((x, y), 1)
-
-        r1 = input[2]
-        # r2 = input[3]
-        # r3 = input[4]
-
-        # r13 = torch.cat((r1, r3), 1)
-        # r12 = torch.cat((r1, r2), 1)
-
-        # r2 = self.linear_similar_xy(xy)
-
-        r2 = self.linear_similar(r1)
-        r3 = self.linear_antonym(r1)
-        r1 = self.linear_self(r1)
-
-        r1 = r1.unsqueeze(1)
-        r2 = r2.unsqueeze(1)
-        r3 = r3.unsqueeze(1)
-
-        R = torch.cat((r1, r2), 1)
-        R = torch.cat((R, r3), 1)
-
-        output1 = self.linear(xy)
-        output2 = output1.unsqueeze(2)
-        output3 = torch.bmm(R, output2).squeeze(2)
-
-        return output3
-        # output4 = self.softmax(output3)
-        # return output4
-
 class PceFourWay(nn.Module):
     def identity(self, x):
         return x
@@ -108,9 +28,6 @@ class PceFourWay(nn.Module):
             self.similar_embedding_nn.add_module("activation", nn.ReLU())
 
         self.ignore_similar_emb = ignore_similar_emb
-
-        # self.activation = self.getActivationFn(activation)
-        # self.softmax = nn.Softmax(dim = 1)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, input_data):
@@ -128,7 +45,6 @@ class PceFourWay(nn.Module):
             r13 = torch.cat((r1, r2), 1)
             r2 = self.similar_embedding_nn(r13)
             # r2 = (r1 + r3) / 2
-
 
         r1 = r1.unsqueeze(1)
         r2 = r2.unsqueeze(1)
@@ -153,11 +69,7 @@ class PceFourWay(nn.Module):
         output3 = torch.bmm(R, output2).squeeze(2)
 
         output3 = torch.cat((output3, A), 1)
-        # print("=====>", r1.shape, output3.shape, A.shape)
         return output3
-        # output4 = self.softmax(output3)
-        # return output4
-
 
 class PceThreeWay(nn.Module):
     def identity(self, x):
@@ -177,8 +89,6 @@ class PceThreeWay(nn.Module):
         self.linear =  nn.Sequential()
         self.linear.add_module("linear", nn.Linear(2*dim, dim))
         self.linear.add_module("activation", self.getActivationFn(activation))
-        # self.activation = self.getActivationFn(activation)
-        # self.softmax = nn.Softmax(dim = 1)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, input_data):
@@ -188,9 +98,14 @@ class PceThreeWay(nn.Module):
 
         x = input[0]
         y = input[1]
-        r1 = input[2].unsqueeze(1)
-        r2 = input[3].unsqueeze(1)
-        r3 = input[4].unsqueeze(1)
+
+        r1 = input[2]
+        r2 = input[3]
+        r3 = input[4]
+
+        r1 = r1.unsqueeze(1)
+        r2 = r2.unsqueeze(1)
+        r3 = r3.unsqueeze(1)
         
         R = torch.cat((r1, r2), 1)
         R = torch.cat((R, r3), 1)
@@ -200,8 +115,6 @@ class PceThreeWay(nn.Module):
         output2 = output1.unsqueeze(2)
         output3 = torch.bmm(R, output2).squeeze(2)
         return output3
-        # output4 = self.softmax(output3)
-        # return output4
 
 class Optim:
     def __init__(self, model, criterion = nn.CrossEntropyLoss(), lr = 0.001, weight_decay=0):
@@ -225,3 +138,62 @@ class Optim:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+class PceOnePole(nn.Module):
+    def identity(self, x):
+        return x
+
+    def getActivationFn(self, activation):
+        if activation == "identity":
+            return nn.ReLU()
+
+    def set_dropout(self, dropout):
+        self.dropout.p = dropout
+
+    def __init__(self, dim, activation = "identity", dropout = 0.5):
+        super(PceOnePole, self).__init__()
+        self.dim = dim
+        
+        self.linear =  nn.Sequential()
+        self.linear.add_module("linear", nn.Linear(2*dim, dim))
+        self.linear.add_module("activation", self.getActivationFn(activation))
+        self.linear_similar = nn.Linear(dim, dim)
+        self.linear_antonym = nn.Linear(dim, dim)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, input_data):
+        batchSize = input_data.shape[0]
+        input = self.dropout(input_data)
+        input = input.chunk(5, 1)
+
+        x = input[0]
+        y = input[1]
+
+        r1 = input[2]
+        r2 = input[3]
+        r3 = input[4]
+
+        r2 = self.linear_similar(r1)
+        r3 = self.linear_antonym(r1)
+
+        r1 = r1.unsqueeze(1)
+        r2 = r2.unsqueeze(1)
+        r3 = r3.unsqueeze(1)
+        
+        R = torch.cat((r1, r2), 1)
+        R = torch.cat((R, r3), 1)
+
+        xy = torch.cat((x, y), 1)
+        output1 = self.linear(xy)
+        output2 = output1.unsqueeze(2)
+        output3 = torch.bmm(R, output2).squeeze(2)
+
+
+        o1 = torch.bmm(r1, output2).squeeze(2)
+        o2 = torch.bmm(r2, output2).squeeze(2)
+        o3 = torch.bmm(r3, output2).squeeze(2)
+
+        # print(output3.shape)
+        output3 = torch.stack((o1, o2, o3), 1).squeeze(2)
+        # print(output3.shape)
+        return output3

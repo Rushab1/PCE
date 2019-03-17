@@ -50,7 +50,6 @@ class Batch():
             except:
                 all_data = [self.train_data, self.test_data]
 
-            print(len(self.train_data), len(self.test_data))
             for data in all_data:
                 i = 0
                 while i < len(data):
@@ -58,7 +57,6 @@ class Batch():
                         del data[i]
                         continue
                     i += 1
-            print(len(self.train_data), len(self.test_data))
 
         if remove_sim:
             try:
@@ -66,7 +64,6 @@ class Batch():
             except:
                 all_data = [self.train_data, self.test_data]
 
-            print(len(self.train_data), len(self.test_data))
             for data in all_data:
                 i = 0
                 while i < len(data):
@@ -74,7 +71,6 @@ class Batch():
                         del data[i]
                         continue
                     i += 1
-            print(len(self.train_data), len(self.test_data))
 
         self.len_train_data = len(self.train_data)
         self.len_test_data = len(self.test_data)
@@ -153,11 +149,7 @@ class Batch():
                 r2 = embeddings["similar"]
                 r3 = embeddings[self.propadj[data[i][2]]]
 
-                tmp = np.concatenate((x,y))
-                tmp = np.concatenate((tmp,r1))
-                tmp = np.concatenate((tmp,r2))
-                tmp = np.concatenate((tmp,r3))
-                # batch[i-s] = torch.FloatTensor(tmp)
+                tmp = np.concatenate((x,y,r1,r2,r3))
                 batch.append(tmp)
 
                 if data[i][3] != -42:
@@ -183,5 +175,3 @@ class Batch():
             epoch_end_flag = True
 
         return batch, target, epoch_end_flag
-
-

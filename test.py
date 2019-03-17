@@ -12,20 +12,22 @@ def test(model, batchObj, zero_shot=False, zero_shot_property=None, batch_from="
     epoch_end_flag = False
     while not epoch_end_flag:
         b, t, epoch_end_flag = batchObj.next_batch(batch_from = batch_from, zero_shot = zero_shot, zero_shot_property=zero_shot_property)
-        print("Test batch size: " + str(len(b)))
-
-        b2 = b.chunk(5, 1)
-        b2 = torch.cat((b2[1], b2[0], b2[4], b2[3], b2[2]), 1)
-        
-        global p, p2
-
         p = model.forward(b)
         
         if no_reverse:
             pred.extend(list(torch.max(p, 1))[1])
         else:
-            p2 = model.forward(b2)
-            pred.extend(list(torch.max(p+p2, 1))[1])
+            b2 = b.chunk(5, 1)
+            b2 = torch.cat((b2[1], b2[0], b2[2], b2[3], b2[4]), 1)
+            p_tmp = model.forward(b2)
+
+            p2 = torch.FloatTensor(p_tmp.shape[0], 3)
+            p2[:, 0] = p[:,0] + p_tmp[:, 2]
+            p2[:, 1] = p[:,1] + p_tmp[:,1]
+            p2[:, 2] = p[:, 2] + p_tmp[:, 0]
+
+            pred.extend(list(torch.max(p2, 1))[1])
+
         target.extend(list(t))
         assert(len(pred) == len(target))
 
@@ -43,6 +45,7 @@ def test_emb_similarity(batchObj, batch_from="test"):
     properties = list(set(properties))
     
     for property in properties:
+        global pred
         pred= []
         target = []
 
@@ -84,12 +87,12 @@ def test_emb_similarity(batchObj, batch_from="test"):
                 n_ind = 2
                 n= n3
 
-            # if m_ind  == 2-n_ind:
-                # pred.append(m_ind)
+            if m_ind  == 2-n_ind:
+                pred.append(m_ind)
             # elif m > n:
                 # pred.append(m_ind)
-            # else:
-                # pred.append(n_ind)
+            else:
+                pred.append(0)
 
 
             # greater_than = m1 + n3
@@ -97,20 +100,22 @@ def test_emb_similarity(batchObj, batch_from="test"):
             # sim = m2 + n2
             greater_than = m1 - n1
             less_than = m3 - n3
-            # sim = abs(m2 - n2)
+            sim = abs(m2 - n2)
             # sim = 0
-            sim = -100
+            # sim = -100
 
-            if greater_than > less_than and greater_than > sim:
-                pred.append(0)
-            elif sim > greater_than and sim > less_than:
-                pred.append(1)
-            else:
-                pred.append(0)
+            # if sim < 0.1:
+                # pred.append(0)
+            # if sim > greater_than and sim > less_than:
+                # pred.append(0)
+            # elif greater_than > less_than and greater_than > sim:
+                # pred.append(1)
+            # else:
+                # pred.append(-1)
 
+        print(len([i for i in pred if i == 1]))
         # pred.extend(list(torch.max(p, 1))[1])
         target.extend(list(t))
-        print(len(target), len(pred))
         assert(len(pred) == len(target))
 
         batchObj.reset_batchCount()
@@ -120,7 +125,10 @@ def test_emb_similarity(batchObj, batch_from="test"):
 if __name__ == "__main__":
     # batch = Batch(10000, "lstm", "verb_physics", "three_way", 1024)
     batch = Batch(10000, "word2vec", "verb_physics", "three_way", 300)
+    batch = Batch(10000, "lstm", "verb_physics", "three_way", 1024)
+    print("DEV")
     test_emb_similarity(batch, batch_from = "dev")
+    print("\nTEST")
     test_emb_similarity(batch, batch_from = "test")
 
 
