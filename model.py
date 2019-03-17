@@ -21,11 +21,26 @@ class PceOnePole(nn.Module):
         self.linear.add_module("linear", nn.Linear(2*dim, dim))
         self.linear.add_module("activation", self.getActivationFn(activation))
 
-        # self.linear_na = nn.Linear(dim, dim)
+        self.linear_similar = nn.Sequential()
+        self.linear_similar.add_module("linear", nn.Linear(dim ,dim))
+        self.linear_similar.add_module("activation", nn.ReLU())
 
-        self.linear_self = nn.Linear(dim ,dim)
-        self.linear_similar = nn.Linear(dim ,dim)
-        self.linear_antonym = nn.Linear(dim, dim)
+        self.linear_similar_xy = nn.Sequential()
+        self.linear_similar_xy.add_module("linear", nn.Linear(2*dim ,dim))
+        self.linear_similar_xy.add_module("activation", nn.ReLU())
+
+        self.linear_self = nn.Sequential()
+        self.linear_self.add_module("linear", nn.Linear(dim ,dim))
+        self.linear_self.add_module("activation", nn.ReLU())
+
+        self.linear_antonym = nn.Sequential()
+        self.linear_antonym.add_module("linear", nn.Linear(dim ,dim))
+        self.linear_antonym.add_module("activation", nn.ReLU())
+
+        # self.linear_self = nn.Linear(dim ,dim)
+        # self.linear_similar = nn.Linear(dim ,dim)
+        # self.linear_antonym = nn.Linear(dim, dim)
+
         # self.activation = self.getActivationFn(activation)
         # self.softmax = nn.Softmax(dim = 1)
         self.dropout = nn.Dropout(dropout)
@@ -37,43 +52,35 @@ class PceOnePole(nn.Module):
 
         x = input[0]
         y = input[1]
-
-        # r1 = input[2].unsqueeze(1)
-        # r2 = input[3].unsqueeze(1)
-        # r3 = input[4].unsqueeze(1)
+        xy = torch.cat((x, y), 1)
 
         r1 = input[2]
-        r2 = self.linear_similar(r1).unsqueeze(1)
-        r3 = self.linear_antonym(r1).unsqueeze(1)
-        r1 = self.linear_self(r1).unsqueeze(1)
+        # r2 = input[3]
+        # r3 = input[4]
 
-        # r2 = self.dropout(r2)
-        # r3 = self.dropout(r3)
+        # r13 = torch.cat((r1, r3), 1)
+        # r12 = torch.cat((r1, r2), 1)
+
+        # r2 = self.linear_similar_xy(xy)
+
+        r2 = self.linear_similar(r1)
+        r3 = self.linear_antonym(r1)
+        r1 = self.linear_self(r1)
+
+        r1 = r1.unsqueeze(1)
+        r2 = r2.unsqueeze(1)
+        r3 = r3.unsqueeze(1)
 
         R = torch.cat((r1, r2), 1)
         R = torch.cat((R, r3), 1)
 
-        # hx = self.linear_na(x).unsqueeze(1)
-        # hy = self.linear_na(y).unsqueeze(1)
-        # hx = hx.view(hx.shape[0], self.dim, 1)
-        # hy = hy.view(hy.shape[0], self.dim, 1)
-
-        # Ax = torch.bmm(r1+r3, hx)
-        # Ay = torch.bmm(r1+r3, hy)
-        # A = Ax +  Ay
-        # A = A.squeeze(2)
-
-        xy = torch.cat((x, y), 1)
         output1 = self.linear(xy)
         output2 = output1.unsqueeze(2)
         output3 = torch.bmm(R, output2).squeeze(2)
 
-        # output3 = torch.cat((output3, A), 1)
-        # print("=====>", r1.shape, output3.shape, A.shape)
         return output3
         # output4 = self.softmax(output3)
         # return output4
-
 
 class PceFourWay(nn.Module):
     def identity(self, x):
@@ -86,15 +93,22 @@ class PceFourWay(nn.Module):
     def set_dropout(self, dropout):
         self.dropout.p = dropout
 
-    def __init__(self, dim, activation = "identity", dropout = 0.5):
+    def __init__(self, dim, activation = "identity", dropout = 0.5, ignore_similar_emb = False):
         super(PceFourWay, self).__init__()
         self.dim = dim
         
         self.linear =  nn.Sequential()
         self.linear.add_module("linear", nn.Linear(2*dim, dim))
         self.linear.add_module("activation", self.getActivationFn(activation))
-
         self.linear_na = nn.Linear(dim, dim)
+
+        if ignore_similar_emb:
+            self.similar_embedding_nn = nn.Sequential()
+            self.similar_embedding_nn.add_module("linear", nn.Linear(2*dim, dim))
+            self.similar_embedding_nn.add_module("activation", nn.ReLU())
+
+        self.ignore_similar_emb = ignore_similar_emb
+
         # self.activation = self.getActivationFn(activation)
         # self.softmax = nn.Softmax(dim = 1)
         self.dropout = nn.Dropout(dropout)
@@ -106,10 +120,20 @@ class PceFourWay(nn.Module):
 
         x = input[0]
         y = input[1]
-        r1 = input[2].unsqueeze(1)
-        r2 = input[3].unsqueeze(1)
-        r3 = input[4].unsqueeze(1)
+        r1 = input[2]
+        r2 = input[3]
+        r3 = input[4]
         
+        if self.ignore_similar_emb:
+            r13 = torch.cat((r1, r2), 1)
+            r2 = self.similar_embedding_nn(r13)
+            # r2 = (r1 + r3) / 2
+
+
+        r1 = r1.unsqueeze(1)
+        r2 = r2.unsqueeze(1)
+        r3 = r3.unsqueeze(1)
+
         R = torch.cat((r1, r2), 1)
         R = torch.cat((R, r3), 1)
 

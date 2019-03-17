@@ -16,7 +16,7 @@ class Batch():
     embeddings = {}
     batchCount = 0
 
-    def __init__(self, batchSize, embeddings_type, dataset, task="three_way", dim = 300, remove_NA=False, remove_sim=False):
+    def __init__(self, batchSize, embeddings_type, dataset, task="three_way", dim = 300i, remove_NA=False):
         self.batchSize = batchSize
         self.embeddings_type = embeddings_type
         self.epoch_num = 0
@@ -45,36 +45,18 @@ class Batch():
             self.test_data = pickle.load(open("./orig/data/pickle2/verb_physics_test_5.pickle"))
 
         if remove_NA:
+            i = 0
             try:
                 all_data = [self.train_data, self.dev_data, self.test_data]
             except:
                 all_data = [self.train_data, self.test_data]
 
-            print(len(self.train_data), len(self.test_data))
             for data in all_data:
-                i = 0
                 while i < len(data):
                     if data[i][3] == -42:
                         del data[i]
                         continue
                     i += 1
-            print(len(self.train_data), len(self.test_data))
-
-        if remove_sim:
-            try:
-                all_data = [self.train_data, self.dev_data, self.test_data]
-            except:
-                all_data = [self.train_data, self.test_data]
-
-            print(len(self.train_data), len(self.test_data))
-            for data in all_data:
-                i = 0
-                while i < len(data):
-                    if data[i][3] == 0:
-                        del data[i]
-                        continue
-                    i += 1
-            print(len(self.train_data), len(self.test_data))
 
         self.len_train_data = len(self.train_data)
         self.len_test_data = len(self.test_data)

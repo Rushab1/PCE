@@ -21,37 +21,116 @@ if __name__ == "__main__":
     args.add_argument("-dataset", type = str, default = "verb_physics")
     args.add_argument("-task", type = str, default = "three_way")
     args.add_argument("-dim", type = int, default = 300)
+    args.add_argument("-zero_shot", action="store_true")
+    args.add_argument("-num_epochs", type = int, default = 20)
+    args.add_argument("-dropout", type = float, default = 0.5)
+    args.add_argument("-no_reverse", action="store_true")
+    args.add_argument("-remove_NA", action="store_true")
+    args.add_argument("-remove_sim", action="store_true")
+    args.add_argument("-ignore_similar_emb", action="store_true")
     opts = args.parse_args()
 
-    print("Loading Training data from " + opts.dataset)
-    batch = Batch(opts.batchSize, opts.embeddings_type, opts.dataset, task=opts.task, dim = opts.dim)
+    batch = Batch(opts.batchSize, opts.embeddings_type, opts.dataset, task=opts.task, dim = opts.dim, remove_NA=opts.remove_NA, remove_sim = opts.remove_sim)
     
     if opts.task == "three_way":
-        model = PceThreeWay(opts.dim)
+        model = PceThreeWay(opts.dim, dropout = opts.dropout)
     elif opts.task == "four_way":
         print("Using Four Way model")
-        model = PceFourWay(opts.dim)
+        model = PceFourWay(opts.dim, dropout = opts.dropout, ignore_similar_emb = opts.ignore_similar_emb)
     elif opts.task == "one_pole":
         print("Using One Pole model")
-        model = PceOnePole(opts.dim)
+        model = PceOnePole(opts.dim, dropout = opts.dropout)
 
-    optim = Optim(model, lr = 0.01, weight_decay = 0) 
+    optim = Optim(model, lr = 0.05, weight_decay = 0) 
     epoch_num = 0
 
-    for i in range(0, 1000000):
-        input, target, epoch_end_flag = batch.next_batch()
+    if opts.dataset == "verb_physics":
+        train_data = pickle.load(open("./orig/data/pickle2/verb_physics_train_5.pickle"))
+        properties = []
+        for i in train_data:
+            properties.append(i[2])
+        properties = list(set(properties))
 
-        pred = model(input)
-        optim.backward(pred, target)
-        
-        if epoch_end_flag:
-            epoch_num += 1
+    if not opts.zero_shot:
+        while epoch_num < opts.num_epochs:
+            # print("Epoch " + str(epoch_num) + " : " + str(test(model, batch)))
+            input, target, epoch_end_flag = batch.next_batch()
 
-        if epoch_num % 5 == 0 and epoch_end_flag:
-            print("EPOCH Done")
-            optim.update_lr(optim.lr/1.2)
-            # print(str(optim.lr), model.dropout.p, optim.loss.item())
-            # print(str(optim.lr), optim.loss.item())
-            print("Epoch " + str(epoch_num) + " : " + str(test(model, batch)))
+            pred = model(input)
+            optim.backward(pred, target)
+            
+            if epoch_end_flag:
+                epoch_num += 1
+
+            if epoch_num % 10 == 0 and epoch_end_flag:
+                print("EPOCH Done")
+                if epoch_num > 100:
+                    optim.update_lr(optim.lr/1.05)
+                else:
+                    optim.update_lr(optim.lr/1.2)
+
+            if epoch_num % 20 == 0 and epoch_end_flag and opts.dataset == "verb_physics":
+                print("____________________________________________")
+                for property in properties:
+                    print("Epoch " + str(epoch_num) + ":" + property +":" +
+                        str(round(
+                            test(model, batch, zero_shot=True, zero_shot_property=property,batch_from="dev",no_reverse=opts.no_reverse),
+                            3)) + ":" +   
+                        str(round(
+                            test(model, batch, zero_shot=True, zero_shot_property=property, batch_from="test", no_reverse=opts.no_reverse)
+                            , 3))) 
+
+                print("Epoch " + str(epoch_num) + ":overall:" + 
+                          str(test(model, batch, batch_from="dev", no_reverse=opts.no_reverse )) + ":" + 
+                          str(test(model, batch, batch_from="test", no_reverse=opts.no_reverse )))
+
+            elif epoch_num % 20 == 0 and epoch_end_flag and opts.dataset == "PCE":
+                print("Epoch " + str(epoch_num) + " : " + str(test(model, batch)))
+
+    if opts.zero_shot:
+        # for i in range(0, 1000000):
+        for property in properties:
+            print("____________________________________________")
+            print("PROPERTY: " + property)
+            epoch_num = 0
+            while epoch_num < opts.num_epochs:
+                input, target, epoch_end_flag = batch.next_batch(zero_shot=True, zero_shot_property=property)
+
+                # print("TRAIN: batch size: " + str(len(input)))
+                pred = model(input)
+                optim.backward(pred, target)
+                
+                if epoch_end_flag:
+                    epoch_num += 1
+
+                if epoch_num % 10 == 0 and epoch_end_flag:
+                    optim.update_lr(optim.lr/1.2)
+                    print("Epoch " + str(epoch_num) + ":" + 
+                            str(round(test(model, batch, zero_shot=True, zero_shot_property=property,batch_from="dev"), 3)) + ":" +   
+                            str(round(test(model, batch, zero_shot=True, zero_shot_property=property, batch_from="test"), 3))) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
