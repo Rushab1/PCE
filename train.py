@@ -24,6 +24,7 @@ if __name__ == "__main__":
     args.add_argument("-zero_shot", action="store_true")
     args.add_argument("-num_epochs", type = int, default = 100)
     args.add_argument("-dropout", type = float, default = 0.5)
+    args.add_argument("-initial_lr", type = float, default = 0.05)
     args.add_argument("-no_reverse", action="store_true")
     args.add_argument("-remove_NA", action="store_true")
     args.add_argument("-remove_sim", action="store_true")
@@ -33,6 +34,7 @@ if __name__ == "__main__":
     batch = Batch(opts.batchSize, opts.embeddings_type, opts.dataset, task=opts.task, dim = opts.dim, remove_NA=opts.remove_NA, remove_sim = opts.remove_sim)
     
     if opts.task == "three_way":
+        print("Using Three Way Model")
         model = PceThreeWay(opts.dim, dropout = opts.dropout)
     elif opts.task == "four_way":
         print("Using Four Way model")
@@ -41,7 +43,7 @@ if __name__ == "__main__":
         print("Using One Pole model")
         model = PceOnePole(opts.dim, dropout = opts.dropout)
 
-    optim = Optim(model, lr = 0.01, weight_decay = 0) 
+    optim = Optim(model, lr = 0.05, weight_decay = 0) 
     epoch_num = 0
 
     if opts.dataset == "verb_physics":
@@ -81,10 +83,14 @@ if __name__ == "__main__":
                 print("Epoch " + str(epoch_num) + ":overall:" + 
                           str(test(model, batch, batch_from="dev", no_reverse=opts.no_reverse )) + ":" + 
                           str(test(model, batch, batch_from="test", no_reverse=opts.no_reverse )))
+                # print(testByPole(model, batch, batch_from="test" ))
                 pickle.dump(model, open("model.pkl", "wb"))
 
             elif epoch_num % 20 == 0 and epoch_end_flag and opts.dataset == "PCE":
-                print("Epoch " + str(epoch_num) + " : " + str(test(model, batch)))
+                print("Epoch " + str(epoch_num) + ":overall:" + 
+                          str(test(model, batch, batch_from="test", no_reverse=opts.no_reverse )))
+                print(testByPole(model, batch, batch_from="test" ))
+                pickle.dump(model, open("model.pkl", "wb"))
 
     if opts.zero_shot:
         for property in properties:
@@ -98,8 +104,8 @@ if __name__ == "__main__":
             elif opts.task == "one_pole":
                 print("Using One Pole model")
                 model = PceOnePole(opts.dim, dropout = opts.dropout)
-
-
+                
+            optim = Optim(model, lr = opts.initial_lr, weight_decay = 0) 
 
             print("____________________________________________")
             print("PROPERTY: " + property)
@@ -120,6 +126,7 @@ if __name__ == "__main__":
                     optim.update_lr(optim.lr/1.2)
 
                 if epoch_num % 10 == 0 and epoch_end_flag:
+                    pickle.dump(model, open("model.pkl", "wb"))
                     print("Epoch " + str(epoch_num) + ":" + 
                             str(round(test(model, batch, zero_shot=True, zero_shot_property=property,batch_from="dev"), 3)) + ":" +   
                             str(round(test(model, batch, zero_shot=True, zero_shot_property=property, batch_from="test"), 3))) 

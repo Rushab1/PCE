@@ -1,4 +1,5 @@
 orig/*
 *pyc
 model.pkl
-
+orig/VE/*
+modelfiles/*

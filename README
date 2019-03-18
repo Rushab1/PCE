@@ -1,0 +1,19 @@
+Run as follows:
+
+python train.py -embeddings_type <> -dim <> -dataset <> -task <> -num_epochs <> -dropout <> -initial_lr <>
+
+values of arguments:
+
+-embeddings_type: lstm, glove or  word2vec
+-dim: 300 for word2vec and glove, 1024 for lstm
+-dataset: verb_physics or PCE or special_words
+-task: three_way, four_way or one-pole
+-num_epochs: about 200 is enough
+-dropout: default is 0.5, recommend not to change
+-initial_lr: default is 0.05, may need to change to 0.1 or 0.01
+
+additional flags
+-no_reverse: PCE(no-reverse)
+-remove_NA: Ignore examples with invalid comparisons
+-remove_sim: Ignore examples with similar comparisons
+-zero_shot: For Zero shot learning
